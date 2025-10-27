@@ -353,6 +353,16 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - [ ] Driver store cleanup
 - [ ] More granular control per cleanup type
 
+### Screenshots
+
+![1](https://github.com/user-attachments/assets/91534cfc-6752-438e-b5e8-86ef131c1562)
+
+![2](https://github.com/user-attachments/assets/0dd53b99-e6a8-4574-904b-87782da203b5)
+
+![3](https://github.com/user-attachments/assets/dcf561bf-c515-46b3-9acc-35ebcdd69567)
+
+![4](https://github.com/user-attachments/assets/6f5a2b2c-ce4a-42a8-831c-750a3214de1d)
+
 ---
 
 **Made with ❤️ for the Windows community**
