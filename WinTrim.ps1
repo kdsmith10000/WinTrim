@@ -414,10 +414,13 @@ function Invoke-SystemCacheCleanup {
 
     foreach ($path in $cachePaths) {
         if (Test-Path $path) {
-            if ((Get-Item $path) -is [System.IO.DirectoryInfo]) {
+            $item = Get-Item $path -ErrorAction SilentlyContinue
+            if ($null -eq $item) { continue }
+
+            if ($item -is [System.IO.DirectoryInfo]) {
                 $size = Get-FolderSize -Path $path
             } else {
-                $size = (Get-Item $path -ErrorAction SilentlyContinue).Length
+                $size = $item.Length
                 if ($null -eq $size) { $size = 0 }
             }
 
@@ -426,7 +429,7 @@ function Invoke-SystemCacheCleanup {
                 $pathsWithData += [PSCustomObject]@{
                     Path = $path
                     Size = $size
-                    Type = if ((Get-Item $path -ErrorAction SilentlyContinue) -is [System.IO.DirectoryInfo]) { "Folder" } else { "File" }
+                    Type = if ($item -is [System.IO.DirectoryInfo]) { "Folder" } else { "File" }
                 }
             }
         }
@@ -469,9 +472,14 @@ function Invoke-SystemCacheCleanup {
                 } else {
                     # File
                     try {
-                        $fileSize = (Get-Item $path).Length
-                        Remove-Item $path -Force -ErrorAction SilentlyContinue
-                        $totalFreed += $fileSize
+                        if (Test-Path $path) {
+                            $file = Get-Item $path -ErrorAction SilentlyContinue
+                            if ($file) {
+                                $fileSize = $file.Length
+                                Remove-Item $path -Force -ErrorAction SilentlyContinue
+                                $totalFreed += $fileSize
+                            }
+                        }
                     } catch {
                         # Skip files in use
                     }
@@ -490,203 +498,6 @@ function Invoke-SystemCacheCleanup {
 }
 
 #endregion
-
-#region Module: Advanced DISM Cleanup
-
-function Invoke-AdvancedDISMCleanup {
-    Write-Host "`n========================================" -ForegroundColor Cyan
-    Write-Host "  MODULE: Advanced DISM Cleanup" -ForegroundColor Cyan
-    Write-Host "========================================" -ForegroundColor Cyan
-
-    Write-Host "`nThis module will:" -ForegroundColor Yellow
-    Write-Host "  - Analyze component store" -ForegroundColor White
-    Write-Host "  - Clean superseded components" -ForegroundColor White
-    Write-Host "  - Reset base of superseded components" -ForegroundColor White
-    Write-Host "`nThis operation can take 10-30 minutes." -ForegroundColor Yellow
-
-    $confirm = Read-Host "`nProceed with DISM cleanup? (Y/N)"
-
-    if ($confirm -eq 'Y' -or $confirm -eq 'y') {
-        Write-Host "`nAnalyzing component store..." -ForegroundColor Yellow
-
-        try {
-            # Analyze
-            $analyzeOutput = & DISM.exe /Online /Cleanup-Image /AnalyzeComponentStore 2>&1
-
-            Write-Host "`nComponent Store Analysis:" -ForegroundColor Cyan
-            $analyzeOutput | ForEach-Object { Write-Host $_ -ForegroundColor Gray }
-
-            # StartComponentCleanup
-            Write-Host "`nCleaning component store..." -ForegroundColor Yellow
-            $cleanupOutput = & DISM.exe /Online /Cleanup-Image /StartComponentCleanup /ResetBase 2>&1
-
-            Write-Host "`nDISM Cleanup Output:" -ForegroundColor Cyan
-            $cleanupOutput | ForEach-Object { Write-Host $_ -ForegroundColor Gray }
-
-            # Try to extract space savings from output
-            $savedSpace = 0
-            foreach ($line in $cleanupOutput) {
-                if ($line -match "(\d+\.?\d*)\s*(GB|MB)") {
-                    $size = [double]$matches[1]
-                    if ($matches[2] -eq "GB") {
-                        $savedSpace = $size * 1GB
-                    } else {
-                        $savedSpace = $size * 1MB
-                    }
-                }
-            }
-
-            Write-Host "`nDISM Cleanup Results:" -ForegroundColor Green
-            Write-Host "  Operation completed successfully" -ForegroundColor White
-            if ($savedSpace -gt 0) {
-                Write-Host "  Estimated space freed: $(Format-FileSize $savedSpace)" -ForegroundColor White
-                $script:TotalSpaceFreed += $savedSpace
-                $script:Statistics.DISMCompression = $savedSpace
-            }
-        } catch {
-            Write-Host "`nDISM cleanup failed: $_" -ForegroundColor Red
-        }
-    } else {
-        Write-Host "DISM cleanup skipped." -ForegroundColor Yellow
-    }
-}
-
-#endregion
-
-# Warning message
-Write-Host "WARNING: This script will perform comprehensive cleanup." -ForegroundColor Yellow
-Write-Host "It is STRONGLY recommended to:" -ForegroundColor Yellow
-Write-Host "  1. Create a System Restore Point first" -ForegroundColor Yellow
-Write-Host "  2. Backup important data" -ForegroundColor Yellow
-Write-Host "  3. Close all browsers and applications" -ForegroundColor Yellow
-Write-Host "  4. Review each module before confirming" -ForegroundColor Yellow
-Write-Host ""
-
-$createRestorePoint = Read-Host "Would you like to create a System Restore Point now? (Y/N)"
-if ($createRestorePoint -eq 'Y' -or $createRestorePoint -eq 'y') {
-    Write-Host "Creating system restore point..." -ForegroundColor Green
-    try {
-        Checkpoint-Computer -Description "Before WinTrim Cleanup v$($script:Version)" -RestorePointType "MODIFY_SETTINGS"
-        Write-Host "Restore point created successfully!" -ForegroundColor Green
-    } catch {
-        Write-Host "Failed to create restore point: $_" -ForegroundColor Red
-        $continue = Read-Host "Continue anyway? (Y/N)"
-        if ($continue -ne 'Y' -and $continue -ne 'y') {
-            exit 0
-        }
-    }
-}
-
-Write-Host ""
-Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "  Select Cleanup Modules" -ForegroundColor Cyan
-Write-Host "========================================" -ForegroundColor Cyan
-Write-Host ""
-Write-Host "Available modules:" -ForegroundColor Yellow
-Write-Host "  1. Duplicate Programs - Remove old software updates (original WinTrim)" -ForegroundColor White
-Write-Host "  2. Temp Files - Clean system and user temp directories" -ForegroundColor White
-Write-Host "  3. Windows Update Cache - Clear update download cache" -ForegroundColor White
-Write-Host "  4. Browser Cache - Clear browser caches (Brave, Chrome, Edge, Firefox)" -ForegroundColor White
-Write-Host "  5. System Cache - Clean thumbnails, logs, error reports, shader cache" -ForegroundColor White
-Write-Host "  6. Advanced DISM - Component store cleanup (slow but thorough)" -ForegroundColor White
-Write-Host "  A. All modules" -ForegroundColor Green
-Write-Host "  Q. Quit" -ForegroundColor Red
-Write-Host ""
-
-$selection = Read-Host "Enter modules to run (e.g., '1,2,3' or 'A' for all)"
-
-$runPrograms = $false
-$runTemp = $false
-$runWindowsUpdate = $false
-$runBrowser = $false
-$runCache = $false
-$runDISM = $false
-
-if ($selection -match '[Qq]') {
-    Write-Host "Exiting..." -ForegroundColor Yellow
-    exit 0
-}
-
-if ($selection -match '[Aa]') {
-    $runPrograms = $true
-    $runTemp = $true
-    $runWindowsUpdate = $true
-    $runBrowser = $true
-    $runCache = $true
-    $runDISM = $true
-} else {
-    if ($selection -match '1') { $runPrograms = $true }
-    if ($selection -match '2') { $runTemp = $true }
-    if ($selection -match '3') { $runWindowsUpdate = $true }
-    if ($selection -match '4') { $runBrowser = $true }
-    if ($selection -match '5') { $runCache = $true }
-    if ($selection -match '6') { $runDISM = $true }
-}
-
-Write-Host ""
-Write-Host "Modules to run:" -ForegroundColor Cyan
-if ($runPrograms) { Write-Host "  ✓ Duplicate Programs" -ForegroundColor Green }
-if ($runTemp) { Write-Host "  ✓ Temp Files" -ForegroundColor Green }
-if ($runWindowsUpdate) { Write-Host "  ✓ Windows Update Cache" -ForegroundColor Green }
-if ($runBrowser) { Write-Host "  ✓ Browser Cache" -ForegroundColor Green }
-if ($runCache) { Write-Host "  ✓ System Cache" -ForegroundColor Green }
-if ($runDISM) { Write-Host "  ✓ Advanced DISM" -ForegroundColor Green }
-Write-Host ""
-
-$startTime = Get-Date
-
-# Run selected modules
-if ($runTemp) { Invoke-TempFilesCleanup }
-if ($runWindowsUpdate) { Invoke-WindowsUpdateCleanup }
-if ($runBrowser) { Invoke-BrowserCacheCleanup }
-if ($runCache) { Invoke-SystemCacheCleanup }
-if ($runPrograms) { Invoke-DuplicateProgramsCleanup }
-if ($runDISM) { Invoke-AdvancedDISMCleanup }
-
-$endTime = Get-Date
-$duration = $endTime - $startTime
-
-# Final summary report
-Write-Host "`n========================================" -ForegroundColor Cyan
-Write-Host "  WinTrim Cleanup Complete!" -ForegroundColor Cyan
-Write-Host "========================================" -ForegroundColor Cyan
-Write-Host ""
-
-Write-Host "FINAL STATISTICS:" -ForegroundColor White
-Write-Host "-------------------" -ForegroundColor White
-Write-Host "Total space freed: $(Format-FileSize $script:TotalSpaceFreed)" -ForegroundColor Green
-Write-Host "Programs removed: $($script:Statistics.ProgramsRemoved)" -ForegroundColor White
-Write-Host "Temp files removed: $($script:Statistics.TempFilesRemoved)" -ForegroundColor White
-Write-Host "Time elapsed: $($duration.Minutes)m $($duration.Seconds)s" -ForegroundColor White
-Write-Host ""
-
-Write-Host "CLEANUP BY MODULE:" -ForegroundColor White
-Write-Host "-------------------" -ForegroundColor White
-if ($script:Statistics.TempFilesRemoved -gt 0) {
-    Write-Host "Temp Files: $($script:Statistics.TempFilesRemoved) files removed" -ForegroundColor Cyan
-}
-if ($script:Statistics.WindowsUpdateCacheCleared -gt 0) {
-    Write-Host "Windows Update: $(Format-FileSize $script:Statistics.WindowsUpdateCacheCleared)" -ForegroundColor Cyan
-}
-if ($script:Statistics.BrowserCacheCleared -gt 0) {
-    Write-Host "Browser Cache: $(Format-FileSize $script:Statistics.BrowserCacheCleared)" -ForegroundColor Cyan
-}
-if ($script:Statistics.SystemCacheCleared -gt 0) {
-    Write-Host "System Cache: $(Format-FileSize $script:Statistics.SystemCacheCleared)" -ForegroundColor Cyan
-}
-if ($script:Statistics.ProgramsRemoved -gt 0) {
-    Write-Host "Duplicate Programs: $($script:Statistics.ProgramsRemoved) removed" -ForegroundColor Cyan
-}
-if ($script:Statistics.DISMCompression -gt 0) {
-    Write-Host "DISM Cleanup: $(Format-FileSize $script:Statistics.DISMCompression)" -ForegroundColor Cyan
-}
-Write-Host ""
-
-Write-Host "========================================" -ForegroundColor Cyan
-Write-Host ""
-Write-Host "Press any key to exit..."
-$null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
-exit 0
 
 #region Module: Duplicate Programs Cleanup
 
@@ -1267,3 +1078,200 @@ foreach ($baseName in $grouped.Keys) {
 }
 
 #endregion
+
+#region Module: Advanced DISM Cleanup
+
+function Invoke-AdvancedDISMCleanup {
+    Write-Host "`n========================================" -ForegroundColor Cyan
+    Write-Host "  MODULE: Advanced DISM Cleanup" -ForegroundColor Cyan
+    Write-Host "========================================" -ForegroundColor Cyan
+
+    Write-Host "`nThis module will:" -ForegroundColor Yellow
+    Write-Host "  - Analyze component store" -ForegroundColor White
+    Write-Host "  - Clean superseded components" -ForegroundColor White
+    Write-Host "  - Reset base of superseded components" -ForegroundColor White
+    Write-Host "`nThis operation can take 10-30 minutes." -ForegroundColor Yellow
+
+    $confirm = Read-Host "`nProceed with DISM cleanup? (Y/N)"
+
+    if ($confirm -eq 'Y' -or $confirm -eq 'y') {
+        Write-Host "`nAnalyzing component store..." -ForegroundColor Yellow
+
+        try {
+            # Analyze
+            $analyzeOutput = & DISM.exe /Online /Cleanup-Image /AnalyzeComponentStore 2>&1
+
+            Write-Host "`nComponent Store Analysis:" -ForegroundColor Cyan
+            $analyzeOutput | ForEach-Object { Write-Host $_ -ForegroundColor Gray }
+
+            # StartComponentCleanup
+            Write-Host "`nCleaning component store..." -ForegroundColor Yellow
+            $cleanupOutput = & DISM.exe /Online /Cleanup-Image /StartComponentCleanup /ResetBase 2>&1
+
+            Write-Host "`nDISM Cleanup Output:" -ForegroundColor Cyan
+            $cleanupOutput | ForEach-Object { Write-Host $_ -ForegroundColor Gray }
+
+            # Try to extract space savings from output
+            $savedSpace = 0
+            foreach ($line in $cleanupOutput) {
+                if ($line -match "(\d+\.?\d*)\s*(GB|MB)") {
+                    $size = [double]$matches[1]
+                    if ($matches[2] -eq "GB") {
+                        $savedSpace = $size * 1GB
+                    } else {
+                        $savedSpace = $size * 1MB
+                    }
+                }
+            }
+
+            Write-Host "`nDISM Cleanup Results:" -ForegroundColor Green
+            Write-Host "  Operation completed successfully" -ForegroundColor White
+            if ($savedSpace -gt 0) {
+                Write-Host "  Estimated space freed: $(Format-FileSize $savedSpace)" -ForegroundColor White
+                $script:TotalSpaceFreed += $savedSpace
+                $script:Statistics.DISMCompression = $savedSpace
+            }
+        } catch {
+            Write-Host "`nDISM cleanup failed: $_" -ForegroundColor Red
+        }
+    } else {
+        Write-Host "DISM cleanup skipped." -ForegroundColor Yellow
+    }
+}
+
+#endregion
+
+# Warning message
+Write-Host "WARNING: This script will perform comprehensive cleanup." -ForegroundColor Yellow
+Write-Host "It is STRONGLY recommended to:" -ForegroundColor Yellow
+Write-Host "  1. Create a System Restore Point first" -ForegroundColor Yellow
+Write-Host "  2. Backup important data" -ForegroundColor Yellow
+Write-Host "  3. Close all browsers and applications" -ForegroundColor Yellow
+Write-Host "  4. Review each module before confirming" -ForegroundColor Yellow
+Write-Host ""
+
+$createRestorePoint = Read-Host "Would you like to create a System Restore Point now? (Y/N)"
+if ($createRestorePoint -eq 'Y' -or $createRestorePoint -eq 'y') {
+    Write-Host "Creating system restore point..." -ForegroundColor Green
+    try {
+        Checkpoint-Computer -Description "Before WinTrim Cleanup v$($script:Version)" -RestorePointType "MODIFY_SETTINGS"
+        Write-Host "Restore point created successfully!" -ForegroundColor Green
+    } catch {
+        Write-Host "Failed to create restore point: $_" -ForegroundColor Red
+        $continue = Read-Host "Continue anyway? (Y/N)"
+        if ($continue -ne 'Y' -and $continue -ne 'y') {
+            exit 0
+        }
+    }
+}
+
+Write-Host ""
+Write-Host "========================================" -ForegroundColor Cyan
+Write-Host "  Select Cleanup Modules" -ForegroundColor Cyan
+Write-Host "========================================" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "Available modules:" -ForegroundColor Yellow
+Write-Host "  1. Duplicate Programs - Remove old software updates (original WinTrim)" -ForegroundColor White
+Write-Host "  2. Temp Files - Clean system and user temp directories" -ForegroundColor White
+Write-Host "  3. Windows Update Cache - Clear update download cache" -ForegroundColor White
+Write-Host "  4. Browser Cache - Clear browser caches (Brave, Chrome, Edge, Firefox)" -ForegroundColor White
+Write-Host "  5. System Cache - Clean thumbnails, logs, error reports, shader cache" -ForegroundColor White
+Write-Host "  6. Advanced DISM - Component store cleanup (slow but thorough)" -ForegroundColor White
+Write-Host "  A. All modules" -ForegroundColor Green
+Write-Host "  Q. Quit" -ForegroundColor Red
+Write-Host ""
+
+$selection = Read-Host "Enter modules to run (e.g., '1,2,3' or 'A' for all)"
+
+$runPrograms = $false
+$runTemp = $false
+$runWindowsUpdate = $false
+$runBrowser = $false
+$runCache = $false
+$runDISM = $false
+
+if ($selection -match '[Qq]') {
+    Write-Host "Exiting..." -ForegroundColor Yellow
+    exit 0
+}
+
+if ($selection -match '[Aa]') {
+    $runPrograms = $true
+    $runTemp = $true
+    $runWindowsUpdate = $true
+    $runBrowser = $true
+    $runCache = $true
+    $runDISM = $true
+} else {
+    if ($selection -match '1') { $runPrograms = $true }
+    if ($selection -match '2') { $runTemp = $true }
+    if ($selection -match '3') { $runWindowsUpdate = $true }
+    if ($selection -match '4') { $runBrowser = $true }
+    if ($selection -match '5') { $runCache = $true }
+    if ($selection -match '6') { $runDISM = $true }
+}
+
+Write-Host ""
+Write-Host "Modules to run:" -ForegroundColor Cyan
+if ($runPrograms) { Write-Host "  ✓ Duplicate Programs" -ForegroundColor Green }
+if ($runTemp) { Write-Host "  ✓ Temp Files" -ForegroundColor Green }
+if ($runWindowsUpdate) { Write-Host "  ✓ Windows Update Cache" -ForegroundColor Green }
+if ($runBrowser) { Write-Host "  ✓ Browser Cache" -ForegroundColor Green }
+if ($runCache) { Write-Host "  ✓ System Cache" -ForegroundColor Green }
+if ($runDISM) { Write-Host "  ✓ Advanced DISM" -ForegroundColor Green }
+Write-Host ""
+
+$startTime = Get-Date
+
+# Run selected modules
+if ($runTemp) { Invoke-TempFilesCleanup }
+if ($runWindowsUpdate) { Invoke-WindowsUpdateCleanup }
+if ($runBrowser) { Invoke-BrowserCacheCleanup }
+if ($runCache) { Invoke-SystemCacheCleanup }
+if ($runPrograms) { Invoke-DuplicateProgramsCleanup }
+if ($runDISM) { Invoke-AdvancedDISMCleanup }
+
+$endTime = Get-Date
+$duration = $endTime - $startTime
+
+# Final summary report
+Write-Host "`n========================================" -ForegroundColor Cyan
+Write-Host "  WinTrim Cleanup Complete!" -ForegroundColor Cyan
+Write-Host "========================================" -ForegroundColor Cyan
+Write-Host ""
+
+Write-Host "FINAL STATISTICS:" -ForegroundColor White
+Write-Host "-------------------" -ForegroundColor White
+Write-Host "Total space freed: $(Format-FileSize $script:TotalSpaceFreed)" -ForegroundColor Green
+Write-Host "Programs removed: $($script:Statistics.ProgramsRemoved)" -ForegroundColor White
+Write-Host "Temp files removed: $($script:Statistics.TempFilesRemoved)" -ForegroundColor White
+Write-Host "Time elapsed: $($duration.Minutes)m $($duration.Seconds)s" -ForegroundColor White
+Write-Host ""
+
+Write-Host "CLEANUP BY MODULE:" -ForegroundColor White
+Write-Host "-------------------" -ForegroundColor White
+if ($script:Statistics.TempFilesRemoved -gt 0) {
+    Write-Host "Temp Files: $($script:Statistics.TempFilesRemoved) files removed" -ForegroundColor Cyan
+}
+if ($script:Statistics.WindowsUpdateCacheCleared -gt 0) {
+    Write-Host "Windows Update: $(Format-FileSize $script:Statistics.WindowsUpdateCacheCleared)" -ForegroundColor Cyan
+}
+if ($script:Statistics.BrowserCacheCleared -gt 0) {
+    Write-Host "Browser Cache: $(Format-FileSize $script:Statistics.BrowserCacheCleared)" -ForegroundColor Cyan
+}
+if ($script:Statistics.SystemCacheCleared -gt 0) {
+    Write-Host "System Cache: $(Format-FileSize $script:Statistics.SystemCacheCleared)" -ForegroundColor Cyan
+}
+if ($script:Statistics.ProgramsRemoved -gt 0) {
+    Write-Host "Duplicate Programs: $($script:Statistics.ProgramsRemoved) removed" -ForegroundColor Cyan
+}
+if ($script:Statistics.DISMCompression -gt 0) {
+    Write-Host "DISM Cleanup: $(Format-FileSize $script:Statistics.DISMCompression)" -ForegroundColor Cyan
+}
+Write-Host ""
+
+Write-Host "========================================" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "Press any key to exit..."
+$null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+exit 0
