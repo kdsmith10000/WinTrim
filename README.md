@@ -1,31 +1,60 @@
-# 🧹 WinTrim
+# 🧹 WinTrim 2.0
 
-**Smart Windows Update & Redistributable Cleanup Tool**
+**Comprehensive Windows Cleanup Tool**
 
-WinTrim intelligently removes duplicate and outdated software updates while keeping your system safe and functional. It's like Marie Kondo for your Windows installation—keeping only what sparks joy (and functionality).
+WinTrim 2.0 is a powerful, modular cleanup tool that goes beyond simple duplicate removal. It intelligently cleans your Windows system across multiple areas while keeping your system safe and functional. Like Marie Kondo for your entire Windows installation—keeping only what sparks joy (and functionality).
 
 ![PowerShell](https://img.shields.io/badge/PowerShell-5.1+-blue.svg)
 ![Windows](https://img.shields.io/badge/Windows-10%2F11-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
+![Version](https://img.shields.io/badge/version-2.0-brightgreen.svg)
 
-## ✨ Features
+## ✨ New in Version 2.0
 
-### 🎯 Smart Detection
-- **Intelligent Pattern Matching**: Finds duplicate Visual C++ redistributables, .NET components, and other updates
-- **Online Version Checking**: Compares installed versions against latest releases from official sources
-- **Dependency-Aware**: Protects essential components from accidental removal
+### 🎯 Six Powerful Cleanup Modules
 
-### 🛡️ Safety First
-- **Automatic Restore Points**: Creates system restore point before making changes
-- **Protected Installations**: Never removes single installations or essential components
-- **Preview Mode**: Shows what will be removed before you confirm
-- **Coexistence Support**: Keeps different Visual C++ years (2005, 2008, 2010, etc.) as they're needed by different programs
+1. **Duplicate Programs** (Original WinTrim)
+   - Removes old software updates and duplicate redistributables
+   - Intelligent pattern matching and online version checking
+   - Keeps different Visual C++ years and editions separate
 
-### 📊 Comprehensive Reporting
-- Disk space savings estimation
-- Memory savings projection
-- Success/failure statistics
-- Detailed removal logs
+2. **Temp Files Cleanup**
+   - Cleans system and user temporary directories
+   - Safe removal of old temporary files
+   - Typical savings: 1-10 GB
+
+3. **Windows Update Cache**
+   - Clears Windows Update download cache
+   - Safely stops and restarts update services
+   - Typical savings: 5-20 GB
+
+4. **Browser Cache Cleanup**
+   - Supports Brave, Chrome, Edge, and Firefox
+   - Clears code cache and regular cache
+   - Typical savings: 500 MB - 5 GB
+
+5. **System Cache Cleanup**
+   - Thumbnail cache, shader cache, icon cache
+   - Windows error reports and old logs
+   - Prefetch files older than 7 days
+   - Typical savings: 1-3 GB
+
+6. **Advanced DISM Cleanup**
+   - Component store analysis and cleanup
+   - Superseded component removal
+   - Most thorough but slowest (10-30 minutes)
+   - Typical savings: 2-10 GB
+
+### 🎮 Interactive Module Selection
+- Run all modules or pick specific ones
+- Easy-to-use menu interface
+- Each module runs independently with its own confirmation
+
+### 📊 Enhanced Reporting
+- Comprehensive final statistics
+- Per-module breakdown
+- Time tracking
+- Total space freed across all modules
 
 ## 🚀 Quick Start
 
@@ -56,7 +85,7 @@ WinTrim intelligently removes duplicate and outdated software updates while keep
 
 ### Basic Usage
 
-Simply run the script and follow the prompts:
+Simply run the script and follow the interactive prompts:
 
 ```powershell
 .\WinTrim.ps1
@@ -64,57 +93,111 @@ Simply run the script and follow the prompts:
 
 The script will:
 1. ✅ Prompt to create a system restore point (recommended!)
-2. 🔍 Scan your installed programs
-3. 🌐 Check online for latest versions
-4. 📋 Show you what will be removed and kept
-5. 💾 Display estimated disk space savings
-6. ⚠️ Ask for confirmation before removing anything
-7. 🗑️ Remove old versions
-8. 📊 Show detailed statistics
+2. 📋 Show available cleanup modules
+3. 🎯 Let you select which modules to run (or run all)
+4. 🔍 Scan and analyze each selected module
+5. 💾 Display estimated disk space savings per module
+6. ⚠️ Ask for confirmation before each cleanup operation
+7. 🗑️ Perform cleanup operations
+8. 📊 Show comprehensive final statistics
 
-### What Gets Cleaned
+### Interactive Module Selection
 
-WinTrim targets these types of duplicates:
+```
+Available modules:
+  1. Duplicate Programs - Remove old software updates (original WinTrim)
+  2. Temp Files - Clean system and user temp directories
+  3. Windows Update Cache - Clear update download cache
+  4. Browser Cache - Clear browser caches (Brave, Chrome, Edge, Firefox)
+  5. System Cache - Clean thumbnails, logs, error reports, shader cache
+  6. Advanced DISM - Component store cleanup (slow but thorough)
+  A. All modules
+  Q. Quit
 
-- ✅ **Visual C++ Redistributables** (old versions of same year/edition)
-- ✅ **Microsoft .NET Runtime** (outdated versions)
-- ✅ **Microsoft Edge Updates** (old update helpers)
-- ✅ **MongoDB Updates** (old versions)
-- ✅ **Java Updates** (outdated versions)
-- ✅ **Adobe Reader/Acrobat** (old updates)
+Enter modules to run (e.g., '1,2,3' or 'A' for all):
+```
 
-### What Stays Safe
+### What Gets Cleaned by Module
 
-WinTrim **NEVER** removes:
+**Module 1: Duplicate Programs**
+- ✅ Visual C++ Redistributables (old versions of same year/edition)
+- ✅ Microsoft .NET Runtime (outdated versions)
+- ✅ Microsoft Edge Updates (old update helpers)
+- ✅ MongoDB, Java, Adobe updates (old versions)
+- ❌ NEVER removes different Visual C++ years (coexist by design)
+- ❌ NEVER removes Python components (part of one installation)
+- ❌ NEVER removes single installations
 
-- ❌ **Different Visual C++ Years** (2005, 2008, 2010, etc. coexist by design)
-- ❌ **Python Components** (Standard Library, pip, etc. are part of one installation)
-- ❌ **Single Installations** (only removes duplicates)
-- ❌ **System-Critical Updates**
+**Module 2-6: System Cleanup**
+- Temporary files (system and user)
+- Windows Update download cache
+- Browser caches (all major browsers)
+- Thumbnail, shader, and icon caches
+- Windows error reports and old logs
+- Superseded Windows components (DISM)
 
 ## 💡 Example Output
 
 ```
 ========================================
-  WinTrim - Smart Cleanup
+  WinTrim v2.0
+  Comprehensive Windows Cleanup
 ========================================
 
-Total programs found in registry: 99
-Found 60 update-related programs.
+Available modules:
+  1. Duplicate Programs - Remove old software updates (original WinTrim)
+  2. Temp Files - Clean system and user temp directories
+  3. Windows Update Cache - Clear update download cache
+  4. Browser Cache - Clear browser caches (Brave, Chrome, Edge, Firefox)
+  5. System Cache - Clean thumbnails, logs, error reports, shader cache
+  6. Advanced DISM - Component store cleanup (slow but thorough)
+  A. All modules
+  Q. Quit
 
-Checking for latest versions online...
-  ✓ Found online version for 'Microsoft Visual C++ 2022': 14.44.35211
-  ✓ Skipping 'Python Standard Library' - part of active installation
+Enter modules to run (e.g., '1,2,3' or 'A' for all): A
 
-Found 8 old versions to remove:
+Modules to run:
+  ✓ Duplicate Programs
+  ✓ Temp Files
+  ✓ Windows Update Cache
+  ✓ Browser Cache
+  ✓ System Cache
+  ✓ Advanced DISM
 
-  - Microsoft Visual C++ 2022 X64 Debug Runtime - 14.36.32532
-    Version: 14.36.32532
-    Size: 30.31 MB
+========================================
+  MODULE: Temporary Files Cleanup
+========================================
 
-Estimated Disk Space to be Freed: 102.95 MB
+Scanning temp directories...
+Total potential space to free: 3.45 GB
 
-Do you want to proceed? (Y/N)
+Proceed with temp files cleanup? (Y/N) Y
+
+Temp Cleanup Results:
+  Files removed: 15,234
+  Space freed: 3.45 GB
+
+... [other modules run] ...
+
+========================================
+  WinTrim Cleanup Complete!
+========================================
+
+FINAL STATISTICS:
+-------------------
+Total space freed: 24.67 GB
+Programs removed: 8
+Temp files removed: 15,234
+Time elapsed: 12m 34s
+
+CLEANUP BY MODULE:
+-------------------
+Temp Files: 15,234 files removed
+Windows Update: 8.23 GB
+Browser Cache: 4.12 GB
+System Cache: 2.34 GB
+Duplicate Programs: 8 removed
+DISM Cleanup: 6.53 GB
 ```
 
 ## 🔧 Advanced Configuration
@@ -249,12 +332,26 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## ⚡ Roadmap
 
+### ✅ Completed (v2.0)
+- [x] Modular cleanup system
+- [x] Temp files cleanup
+- [x] Windows Update cache cleanup
+- [x] Browser cache cleanup
+- [x] System cache cleanup
+- [x] DISM component cleanup
+- [x] Comprehensive statistics and reporting
+
+### 🔮 Future Enhancements
 - [ ] GUI version
 - [ ] Scheduled cleanup tasks
 - [ ] Export/import cleanup profiles
-- [ ] Detailed HTML reports
-- [ ] Rollback specific items
+- [ ] Detailed HTML/JSON reports
+- [ ] Per-module rollback
 - [ ] Portable version (no installation required)
+- [ ] Recycle Bin cleanup module
+- [ ] Windows.old removal module
+- [ ] Driver store cleanup
+- [ ] More granular control per cleanup type
 
 ---
 
