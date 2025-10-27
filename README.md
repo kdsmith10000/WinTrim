@@ -8,6 +8,11 @@ WinTrim 2.0 is a powerful, modular cleanup tool that goes beyond simple duplicat
 ![Windows](https://img.shields.io/badge/Windows-10%2F11-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Version](https://img.shields.io/badge/version-2.0-brightgreen.svg)
+![GitHub Stars](https://img.shields.io/github/stars/kdsmith10000/WinTrim?style=social)
+![GitHub Forks](https://img.shields.io/github/forks/kdsmith10000/WinTrim?style=social)
+![GitHub Issues](https://img.shields.io/github/issues/kdsmith10000/WinTrim)
+![GitHub Last Commit](https://img.shields.io/github/last-commit/kdsmith10000/WinTrim)
+![GitHub Downloads](https://img.shields.io/github/downloads/kdsmith10000/WinTrim/total)
 
 ## ✨ New in Version 2.0
 
